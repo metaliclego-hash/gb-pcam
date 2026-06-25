@@ -472,8 +472,8 @@ async function startCamera() {
 
     streaming = true;
     document.getElementById('startOverlay').style.display  = 'none';
-    document.getElementById('flipBtn').style.display       = '';
-    document.getElementById('shutterBtn').style.display    = '';
+    document.getElementById('flipBtn').style.display       = 'block';
+    document.getElementById('shutterBtn').style.display    = 'block';
     setStatus('▶ 動作中');
 
     if (!animId) animId = requestAnimationFrame(loop);
