@@ -59,43 +59,6 @@
 
     video { display: none; }
 
-    /* ---- Start overlay ---- */
-    #startOverlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
-      background: var(--c3);
-    }
-
-    #startOverlay .logo {
-      font-size: 28px;
-      letter-spacing: 4px;
-      color: var(--c0);
-    }
-
-    #startOverlay .sub {
-      font-size: 12px;
-      color: var(--c2);
-      letter-spacing: 1px;
-    }
-
-    #startBtn {
-      background: var(--c2);
-      color: var(--c0);
-      border: 2px solid var(--c1);
-      border-radius: 6px;
-      padding: 14px 36px;
-      font-family: inherit;
-      font-size: 16px;
-      cursor: pointer;
-      letter-spacing: 1px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #startBtn:active { background: var(--c1); color: var(--c3); }
 
     /* ---- Shutter button ---- */
     #shutterBtn {
@@ -298,13 +261,6 @@
   <div id="viewfinder">
     <canvas id="canvas"></canvas>
 
-    <div id="startOverlay">
-      <div class="logo">GBCam</div>
-      <div class="sub">Game Boy Camera Simulator</div>
-      <button id="startBtn">▶ カメラ開始</button>
-      <div class="sub">シャッターあり</div>
-    </div>
-
     <div id="flash"></div>
   </div>
 
@@ -462,7 +418,6 @@ async function startCamera() {
     await video.play();
 
     streaming = true;
-    document.getElementById('startOverlay').style.display = 'none';
     setStatus('▶ 動作中');
 
     if (!animId) animId = requestAnimationFrame(loop);
@@ -590,14 +545,6 @@ document.getElementById('shutterBtn').addEventListener('click', () => {
   setTimeout(() => setStatus('▶ 動作中'), 2500);
 });
 
-// Start camera button
-document.getElementById('startBtn').addEventListener('click', () => {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus('このブラウザではカメラが使用できません');
-    return;
-  }
-  startCamera();
-});
 
 // Flip camera
 document.getElementById('flipBtn').addEventListener('click', () => {
@@ -668,7 +615,13 @@ window.addEventListener('resize', resizeCanvas);
 // -----------------------------------------------------------------------
 resizeCanvas();
 
-// Register service worker for offline / PWA install
+// Auto-start camera on load
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+  setStatus('このブラウザではカメラが使用できません');
+} else {
+  startCamera();
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
