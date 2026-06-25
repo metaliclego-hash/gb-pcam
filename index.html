@@ -97,6 +97,47 @@
     }
     #startBtn:active { background: var(--c1); color: var(--c3); }
 
+    /* ---- Shutter button ---- */
+    #shutterBtn {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(15, 56, 15, 0.75);
+      border: 3px solid var(--c0);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      transition: transform 0.08s ease, background 0.08s ease;
+    }
+    #shutterBtn::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      background: var(--c0);
+      opacity: 0.85;
+    }
+    #shutterBtn:active {
+      transform: translateX(-50%) scale(0.88);
+      background: rgba(139, 172, 15, 0.5);
+    }
+
+    /* ---- Flash overlay ---- */
+    #flash {
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease-out;
+    }
+
     /* ---- Flip button ---- */
     #flipBtn {
       position: absolute;
@@ -274,6 +315,8 @@
     </div>
 
     <button id="flipBtn" title="カメラ切替">↩</button>
+    <button id="shutterBtn" title="撮影"></button>
+    <div id="flash"></div>
   </div>
 
   <!-- ---- Bottom panel ---- -->
@@ -428,8 +471,9 @@ async function startCamera() {
     await video.play();
 
     streaming = true;
-    document.getElementById('startOverlay').style.display = 'none';
-    document.getElementById('flipBtn').style.display      = '';
+    document.getElementById('startOverlay').style.display  = 'none';
+    document.getElementById('flipBtn').style.display       = '';
+    document.getElementById('shutterBtn').style.display    = '';
     setStatus('▶ 動作中');
 
     if (!animId) animId = requestAnimationFrame(loop);
@@ -514,6 +558,36 @@ function setStatus(txt) {
 // -----------------------------------------------------------------------
 // Event listeners
 // -----------------------------------------------------------------------
+
+// Shutter button – capture current frame
+document.getElementById('shutterBtn').addEventListener('click', () => {
+  // Flash effect
+  const flash = document.getElementById('flash');
+  flash.style.transition = 'none';
+  flash.style.opacity = '0.9';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      flash.style.transition = 'opacity 0.35s ease-out';
+      flash.style.opacity = '0';
+    });
+  });
+
+  // Build filename with timestamp
+  const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  const filename = `gbcam_${ts}.png`;
+
+  // Save canvas as PNG
+  const dataUrl = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setStatus('📷 保存: ' + filename);
+  setTimeout(() => setStatus('▶ 動作中'), 2500);
+});
 
 // Start camera button
 document.getElementById('startBtn').addEventListener('click', () => {
