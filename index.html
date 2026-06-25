@@ -487,12 +487,24 @@ function loop(ts) {
   small.width  = gbW;
   small.height = gbH;
 
+  // Crop-center: maintain video aspect ratio when drawing to GB canvas
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const gbAspect = gbW / gbH;
+  const videoAspect = vw / vh;
+  let sx, sy, sw, sh;
+  if (videoAspect > gbAspect) {
+    sh = vh; sw = vh * gbAspect; sx = (vw - sw) / 2; sy = 0;
+  } else {
+    sw = vw; sh = vw / gbAspect; sx = 0; sy = (vh - sh) / 2;
+  }
+
   if (facingMode === 'user') {
     sCtx.save();
     sCtx.translate(gbW, 0);
     sCtx.scale(-1, 1);
   }
-  sCtx.drawImage(video, 0, 0, gbW, gbH);
+  sCtx.drawImage(video, sx, sy, sw, sh, 0, 0, gbW, gbH);
   if (facingMode === 'user') sCtx.restore();
 
   const imgData = sCtx.getImageData(0, 0, gbW, gbH);
