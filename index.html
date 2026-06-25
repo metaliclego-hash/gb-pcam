@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,
+        maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GBCam">
+  <meta name="theme-color" content="#0f380f">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.json">
+  <title>GBCam</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --c0: #9bbc0f;   /* lightest */
+      --c1: #8bac0f;
+      --c2: #306230;
+      --c3: #0f380f;   /* darkest */
+    }
+
+    html, body {
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--c3);
+      color: var(--c0);
+      font-family: 'Courier New', Courier, monospace;
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Viewfinder ---- */
+    #viewfinder {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    video { display: none; }
+
+    /* ---- Start overlay ---- */
+    #startOverlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: var(--c3);
+    }
+
+    #startOverlay .logo {
+      font-size: 28px;
+      letter-spacing: 4px;
+      color: var(--c0);
+    }
+
+    #startOverlay .sub {
+      font-size: 12px;
+      color: var(--c2);
+      letter-spacing: 1px;
+    }
+
+    #startBtn {
+      background: var(--c2);
+      color: var(--c0);
+      border: 2px solid var(--c1);
+      border-radius: 6px;
+      padding: 14px 36px;
+      font-family: inherit;
+      font-size: 16px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #startBtn:active { background: var(--c1); color: var(--c3); }
+
+    /* ---- Flip button ---- */
+    #flipBtn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: none;
+      background: rgba(15, 56, 15, 0.75);
+      color: var(--c0);
+      border: 1.5px solid var(--c2);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 18px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* ---- Bottom panel ---- */
+    #bottomPanel {
+      flex-shrink: 0;
+      border-top: 2px solid var(--c2);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    #toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--c3);
+      padding: 7px 12px;
+    }
+
+    #settingsToggle {
+      background: var(--c2);
+      color: var(--c0);
+      border: 1px solid var(--c1);
+      border-radius: 4px;
+      padding: 7px 16px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      min-height: 36px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #statusText { font-size: 11px; color: var(--c2); }
+
+    /* ---- Settings drawer ---- */
+    #drawer {
+      background: #0a2a0a;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.25s ease;
+    }
+
+    #drawer.open {
+      max-height: 320px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .srow {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      gap: 8px;
+      border-bottom: 1px solid rgba(48, 98, 48, 0.35);
+      min-height: 44px;
+    }
+
+    .srow .lbl {
+      min-width: 82px;
+      font-size: 12px;
+      color: var(--c1);
+      flex-shrink: 0;
+    }
+
+    .srow select {
+      flex: 1;
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--c2);
+      color: var(--c0);
+      border: 1px solid var(--c1);
+      border-radius: 3px;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
+    .srow input[type="range"] {
+      flex: 1;
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--c2);
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+    }
+    .srow input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--c0);
+      cursor: pointer;
+    }
+
+    .srow input[type="number"] {
+      width: 58px;
+      background: var(--c2);
+      color: var(--c0);
+      border: 1px solid var(--c1);
+      border-radius: 3px;
+      padding: 5px 6px;
+      font-family: inherit;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .tslider {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      background: var(--c3);
+      border: 1.5px solid var(--c2);
+      border-radius: 26px;
+      transition: 0.2s;
+    }
+    .tslider::before {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; top: 2px;
+      background: var(--c2);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle input:checked + .tslider {
+      background: var(--c2);
+      border-color: var(--c1);
+    }
+    .toggle input:checked + .tslider::before {
+      background: var(--c0);
+      transform: translateX(20px);
+    }
+
+    #gbCustomRow { display: none; }
+  </style>
+</head>
+<body>
+
+<video id="video" autoplay playsinline muted></video>
+
+<div id="app">
+
+  <!-- ---- Viewfinder ---- -->
+  <div id="viewfinder">
+    <canvas id="canvas"></canvas>
+
+    <div id="startOverlay">
+      <div class="logo">GBCam</div>
+      <div class="sub">Game Boy Camera Simulator</div>
+      <button id="startBtn">▶ カメラ開始</button>
+    </div>
+
+    <button id="flipBtn" title="カメラ切替">↩</button>
+  </div>
+
+  <!-- ---- Bottom panel ---- -->
+  <div id="bottomPanel">
+    <div id="toolbar">
+      <button id="settingsToggle">⚙ 設定 ▾</button>
+      <span id="statusText">準備完了</span>
+    </div>
+
+    <div id="drawer">
+
+      <!-- GB Resolution -->
+      <div class="srow">
+        <span class="lbl">GB解像度</span>
+        <select id="gbPreset">
+          <option value="128x112" selected>GB Camera  128×112</option>
+          <option value="160x144">GB Screen  160×144</option>
+          <option value="64x56">Tiny        64×56</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div class="srow" id="gbCustomRow">
+        <span class="lbl">W × H</span>
+        <input type="number" id="gbW" value="128" min="16" max="512">
+        <span style="color:var(--c1); flex-shrink:0">×</span>
+        <input type="number" id="gbH" value="112" min="16" max="512">
+      </div>
+
+      <!-- FPS -->
+      <div class="srow">
+        <span class="lbl">FPS</span>
+        <select id="fps">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="12">12</option>
+          <option value="15" selected>15</option>
+          <option value="20">20</option>
+          <option value="24">24</option>
+          <option value="30">30</option>
+        </select>
+      </div>
+
+      <!-- Dithering -->
+      <div class="srow">
+        <span class="lbl">Dithering</span>
+        <label class="toggle">
+          <input type="checkbox" id="dither" checked>
+          <span class="tslider"></span>
+        </label>
+      </div>
+
+      <!-- Brightness -->
+      <div class="srow">
+        <span class="lbl">Brightness</span>
+        <input type="range" id="brightness" min="-80" max="80" value="0" step="1">
+      </div>
+
+      <!-- Contrast -->
+      <div class="srow">
+        <span class="lbl">Contrast</span>
+        <input type="range" id="contrast" min="50" max="200" value="110" step="1">
+      </div>
+
+    </div><!-- /drawer -->
+  </div><!-- /bottomPanel -->
+
+</div><!-- /app -->
+
+<script>
+'use strict';
+
+// -----------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------
+const GB_PALETTE = [
+  [155, 188,  15],   // shade 0 – lightest (#9BBC0F)
+  [139, 172,  15],   // shade 1
+  [ 48,  98,  48],   // shade 2
+  [ 15,  56,  15],   // shade 3 – darkest (#0F380F)
+];
+
+const BAYER = [
+  [ 0,  8,  2, 10],
+  [12,  4, 14,  6],
+  [ 3, 11,  1,  9],
+  [15,  7, 13,  5],
+];
+
+// -----------------------------------------------------------------------
+// State
+// -----------------------------------------------------------------------
+let streaming   = false;
+let mediaStream = null;
+let facingMode  = 'environment';
+let animId      = null;
+let lastTime    = 0;
+
+let gbW        = 128;
+let gbH        = 112;
+let targetFps  = 15;
+let ditherOn   = true;
+let brightness = 0;
+let contrast   = 1.1;
+
+// -----------------------------------------------------------------------
+// DOM references
+// -----------------------------------------------------------------------
+const video  = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+// Offscreen canvas for GB-resolution processing
+const small  = document.createElement('canvas');
+const sCtx   = small.getContext('2d');
+
+// -----------------------------------------------------------------------
+// Resize display canvas to fit viewfinder while keeping GB aspect ratio
+// -----------------------------------------------------------------------
+function resizeCanvas() {
+  const vf   = document.getElementById('viewfinder');
+  const vfw  = vf.clientWidth;
+  const vfh  = vf.clientHeight;
+  const asp  = gbW / gbH;
+  let cw, ch;
+  if (vfw / vfh > asp) {
+    ch = vfh; cw = Math.round(ch * asp);
+  } else {
+    cw = vfw; ch = Math.round(cw / asp);
+  }
+  canvas.width  = cw;
+  canvas.height = ch;
+}
+
+// -----------------------------------------------------------------------
+// Start / restart camera
+// -----------------------------------------------------------------------
+async function startCamera() {
+  try {
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: facingMode },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+
+    video.srcObject = mediaStream;
+    await video.play();
+
+    streaming = true;
+    document.getElementById('startOverlay').style.display = 'none';
+    document.getElementById('flipBtn').style.display      = '';
+    setStatus('▶ 動作中');
+
+    if (!animId) animId = requestAnimationFrame(loop);
+
+  } catch (err) {
+    setStatus('エラー: ' + err.message);
+    console.error(err);
+  }
+}
+
+// -----------------------------------------------------------------------
+// Main processing loop
+// -----------------------------------------------------------------------
+function loop(ts) {
+  animId = requestAnimationFrame(loop);
+
+  if (!streaming || !video.videoWidth) return;
+  if (ts - lastTime < 1000 / targetFps) return;
+  lastTime = ts;
+
+  // 1. Draw webcam frame to offscreen canvas at GB resolution
+  small.width  = gbW;
+  small.height = gbH;
+
+  if (facingMode === 'user') {
+    sCtx.save();
+    sCtx.translate(gbW, 0);
+    sCtx.scale(-1, 1);
+  }
+  sCtx.drawImage(video, 0, 0, gbW, gbH);
+  if (facingMode === 'user') sCtx.restore();
+
+  const imgData = sCtx.getImageData(0, 0, gbW, gbH);
+  const src = imgData.data;
+
+  const result = new ImageData(gbW, gbH);
+  const dst = result.data;
+
+  // 2. Process each pixel
+  for (let y = 0; y < gbH; y++) {
+    for (let x = 0; x < gbW; x++) {
+      const i = (y * gbW + x) << 2;   // * 4
+
+      // Grayscale (Rec.601 luma)
+      let g = 0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2];
+
+      // Brightness / contrast
+      g = contrast * g + brightness;
+
+      // Bayer ordered dithering
+      if (ditherOn) {
+        g += (BAYER[y & 3][x & 3] / 16 - 0.5) * 0.35 * 255;
+      }
+
+      // Clamp
+      if (g < 0) g = 0; else if (g > 255) g = 255;
+
+      // Quantise 4 levels: bright → shade 0 (light), dark → shade 3 (dark)
+      const level = 3 - Math.min(3, g >> 6);
+      const c = GB_PALETTE[level];
+
+      dst[i]     = c[0];
+      dst[i + 1] = c[1];
+      dst[i + 2] = c[2];
+      dst[i + 3] = 255;
+    }
+  }
+
+  // 3. Write back, then scale to display canvas (nearest-neighbour = crisp pixels)
+  sCtx.putImageData(result, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(small, 0, 0, canvas.width, canvas.height);
+}
+
+// -----------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------
+function setStatus(txt) {
+  document.getElementById('statusText').textContent = txt;
+}
+
+// -----------------------------------------------------------------------
+// Event listeners
+// -----------------------------------------------------------------------
+
+// Start camera button
+document.getElementById('startBtn').addEventListener('click', () => {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setStatus('このブラウザではカメラが使用できません');
+    return;
+  }
+  startCamera();
+});
+
+// Flip camera
+document.getElementById('flipBtn').addEventListener('click', () => {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  startCamera();
+});
+
+// Settings drawer toggle
+document.getElementById('settingsToggle').addEventListener('click', () => {
+  const drawer = document.getElementById('drawer');
+  const btn    = document.getElementById('settingsToggle');
+  const open   = drawer.classList.toggle('open');
+  btn.textContent = open ? '⚙ 設定 ▴' : '⚙ 設定 ▾';
+  // Recalculate canvas after drawer animation completes
+  setTimeout(resizeCanvas, 270);
+});
+
+// GB Resolution preset
+document.getElementById('gbPreset').addEventListener('change', e => {
+  const val = e.target.value;
+  const customRow = document.getElementById('gbCustomRow');
+  if (val === 'custom') {
+    customRow.style.display = 'flex';
+  } else {
+    customRow.style.display = 'none';
+    const parts = val.split('x').map(Number);
+    gbW = parts[0]; gbH = parts[1];
+    document.getElementById('gbW').value = gbW;
+    document.getElementById('gbH').value = gbH;
+    resizeCanvas();
+  }
+});
+
+// Custom GB dimensions
+function applyCustomGb() {
+  gbW = Math.max(16, parseInt(document.getElementById('gbW').value) || 128);
+  gbH = Math.max(16, parseInt(document.getElementById('gbH').value) || 112);
+  resizeCanvas();
+}
+document.getElementById('gbW').addEventListener('change', applyCustomGb);
+document.getElementById('gbH').addEventListener('change', applyCustomGb);
+
+// FPS
+document.getElementById('fps').addEventListener('change', e => {
+  targetFps = parseInt(e.target.value);
+});
+
+// Dithering
+document.getElementById('dither').addEventListener('change', e => {
+  ditherOn = e.target.checked;
+});
+
+// Brightness
+document.getElementById('brightness').addEventListener('input', e => {
+  brightness = parseInt(e.target.value);
+});
+
+// Contrast
+document.getElementById('contrast').addEventListener('input', e => {
+  contrast = parseInt(e.target.value) / 100;
+});
+
+// Resize on layout change
+window.addEventListener('resize', resizeCanvas);
+
+// -----------------------------------------------------------------------
+// Init
+// -----------------------------------------------------------------------
+resizeCanvas();
+
+// Register service worker for offline / PWA install
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
